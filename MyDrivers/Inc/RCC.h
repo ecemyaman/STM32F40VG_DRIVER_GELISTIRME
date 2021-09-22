@@ -65,7 +65,7 @@
 														UNUSED(tempValue);	\
 												}while(0)
 
-#define RCC_I2C_CLK_ENABLE()					do{	uint32_t tempValue = 0;	\
+#define RCC_I2C1_CLK_ENABLE()					do{	uint32_t tempValue = 0;	\
 														SET_BIT(RCC->AHB1ENR ,RCC_APB1ENR_USART2EN);	\
 														tempValue = READ_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);	\
 														UNUSED(tempValue);	\
@@ -83,7 +83,7 @@
 #define RCC_SPI2_CLK_DISABLE()					CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_SPI2EN);
 
 #define RCC_USART2_CLK_DISABLE()				CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);
-#define RCC_I2C_CLK_DISABLE()					CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);
+#define RCC_I2C1_CLK_DISABLE()					CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_USART2EN);
 
 
 uint32_t RCC_GetSystemClock(void); // HANGİ CLOCK KULLANILDIĞINI GÖRÜR.

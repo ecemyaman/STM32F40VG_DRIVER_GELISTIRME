@@ -58,14 +58,17 @@ typedef struct
 
 }USART_InitTypeDef_t;
 
-typedef struct
+typedef struct __USART_HandleTypedef_t
 {
 	USART_TypeDef_t *Instance;
 	USART_InitTypeDef_t Init;
 	uint8_t *pTxBuffer;
 	uint16_t TxBufferSize;
 	uint8_t TxStatus;
-	void(*TxISR_Function)(struct __USART_HandleTypedef_t *SPI_Handle);
+	void(*TxISR_Function)(struct __USART_HandleTypedef_t *USART_Handle);
+	uint8_t *pRxBuffer;
+	uint16_t RxStatus;
+	void (*RxISR_Function)(struct __USART_HandleTypedef_t *USART_Handle);
 
 }USART_HandleTypedef_t;
 
@@ -82,10 +85,10 @@ void USART_Init(USART_HandleTypedef_t *USART_Handle);
 void USART_TransmitData(USART_HandleTypedef_t *USART_Handle, uint8_t *pData, uint16_t dataSize);
 USART_FlagStatus_t USART_GetFlagStatus(USART_HandleTypedef_t *USART_Handle, uint16_t flagName);
 void USART_PeriphCmd(USART_HandleTypedef_t *USART_Handle, FunctionalState_t stateOfUSART);
-void USART_ReveiceData(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize);
+void USART_ReceiveData(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize);
 void USART_TransmitData_IT(USART_HandleTypedef_t *USART_Handle, uint8_t *pData, uint16_t dataSize);
-void USART_InterrutHandler(USART_HandleTypedef_t *USART_Handle);
-
+void USART_InterruptHandler(USART_HandleTypedef_t *USART_Handle);
+void USART_ReceiveData_IT(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize);
 
 
 #endif /* INC_USART_H_ */

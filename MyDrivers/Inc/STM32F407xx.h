@@ -229,7 +229,7 @@ typedef struct
 		__IO uint32_t SR2;		// I2C STATUS REGISTER	2					ADDRESS OFFSET = 0X18
 		__IO uint32_t CCR;		// I2C CLOCK CONTROL REGISTER				ADDRESS OFFSET = 0X1C
 		__IO uint32_t TRISE;	// I2C TRISE REGISTER						ADDRESS OFFSET = 0X20
-		__IO uint32_t FLTER;	// I2C FLTR REGISTER						ADDRESS OFFSET = 0X24
+		__IO uint32_t FLTR;		// I2C FLTR REGISTER						ADDRESS OFFSET = 0X24
 
 }I2C_TypeDef_t;
 //GPIOA'nın adresi sayesinde struct pointer yapısıyla register üzerinde ilerleyebiliriz.
@@ -339,6 +339,7 @@ typedef struct
 #define UART_CR2_STOP					(12U)
 #define USART_SR_TxE					(7U)
 #define USART_CR1_TxEIE					(7U)
+#define USART_CR1_RxNEIE				(5U)
 #define USART_SR_TC						(6U)
 #define USART_TxE_FLAG					(0x1U << USART_SR_TxE)
 #define USART_TC_FLAG					(0x1U << USART_SR_TC)
