@@ -47,6 +47,7 @@ uint32_t RCC_GetPClock1(void)
 	uint8_t tempValue = 0;
 
 	Hclock = RCC_GetHClock();
+	//10 bit ile kaydırıp 7 bit ile AND işlemine aldık.
 	HPRE1_Value = ((RCC->CFGR >> 10U) & 0x7U);
 	tempValue = APB_Prescalers[HPRE1_Value];
 	APB1_PeriphClock = (Hclock >> tempValue);
@@ -68,10 +69,6 @@ uint32_t RCC_GetPClock2(void)
 
 	return APB2_PeriphClock;
 }
-
-
-
-
 
 
 

@@ -2,6 +2,23 @@
 
 static void GPIO_Config(void);
 static void UART_Config(void);
+
+static closeUSART_ISR(USART_HandleTypedef_t *USART_Handle)
+		{
+			USART_Handle->TxBufferSize = 0;
+			USART_Handle->pTxBuffer = NULL;
+			USART_Handle->TxStatus = USART_BUS_FREE;
+
+			USART_Handle->Instance->CR1 &=  ~(0x1U << USART_CR1_TxEIE);
+		}
+static closeUSART_ISR_Rx(USART_HandleTypedef_t *USART_Handle)
+		{
+				USART_Handle->RxBufferSize = 0;
+				USART_Handle->pRxBuffer = NULL;
+				USART_Handle->RxStatus = USART_BUS_FREE;
+
+				USART_Handle->Instance->CR1 &=  ~(0x1U << USART_CR1_RxEIE);
+		}
 static void USART_SendWith_IT(USART_HandleTypedef_t *USART_Handle)
 {
 	if((USART_Handle->Init.WordLength == USART_WORDLENGTH_9BITS) && (USART_Handle->Init.Parity == USART_PARITY_NONE))
@@ -19,6 +36,59 @@ static void USART_SendWith_IT(USART_HandleTypedef_t *USART_Handle)
 		USART_Handle->pTxBuffer ++;
 		USART_Handle->TxBufferSize --;
 	}
+	if(USART_Handle->TxBufferSize == 0)
+	{
+		closeUSART_ISR(USART_Handle);
+	}
+}
+static void USART_ReceiveWith_IT(USART_HandleTypedef_t *USART_Handle)
+{
+	uint16_t *p16BitsBuffer;
+	uint8_t *p8BitsBuffer;
+
+	if(USART_Handle->Init.WordLength == USART_WORDLENGTH_9BITS) && (USART_Handle->Init.Parity == USART_PARITY_NONE)
+	{
+			p16BitsBuffer = (uint16_t*) USART_Handle->pRxBuffer;
+			p8BitsBuffer = NULL;
+	}
+	else
+	{
+		p8BitsBuffer = (uint8_t*) USART_Handle->pRxBuffer;
+		p16BitsBuffer = NULL;
+	}
+
+	if(p8BitsBuffer == NULL)
+	{
+		*p16BitsBuffer = (uint16_t) (USART_Handle->Instance->DR & 0x01FFU);
+		USART_Handle->pRxBuffer += sizeof (uint16_t);
+		USART_Handle->RxBufferSize -= 2;
+	}
+	else
+	{
+		if((USART_Handle->Init.WordLength == USART_WORDLENGTH_9BITS) && (USART_Handle->Init.Parity != USART_PARITY_NONE))
+		{
+			*p8BitsBuffer = (uint8_t)(USART_Handle->Instance->DR & 0x00FFU);
+			USART_Handle->pRxBuffer++;
+			USART_Handle->pRxBufferSize--;
+		}
+		else if((USART_Handle->Init.WordLength == USART_WORDLENGTH_8BITS) && (USART_Handle->Init.Parity != USART_PARITY_NONE))
+		{
+			*p8BitsBuffer = (uint8_t)(USART_Handle->Instance->DR & 0x00FFU);
+			USART_Handle->pRxBuffer++;
+			dataSize--;
+		}
+		else
+		{
+			USART_Handle->pRxBuffer++;
+			USART_Handle->pRxBufferSize--;
+			dataSize--;
+		}
+	}
+	if(USART_Handle->RxBufferSize == 0)
+	{
+		closeUSART_ISR(USART_Handle);
+	}
+
 }
 void USART_Init(USART_HandleTypedef_t *USART_Handle)
 {
@@ -87,7 +157,7 @@ void USART_TransmitData(USART_HandleTypedef_t *USART_Handle, uint8_t *pData, uin
 		data16Bits = NULL;
 	}
 
-	while(dataSize>0) //
+	while(dataSize>0)
 	{
 		while(!(USART_GetFlagStatus(USART_Handle, USART_TxE_FLAG ))); //veri gönderimesi sırasında TXE bit 1 olması gerekir.
 		if(data16Bits == NULL)
@@ -122,18 +192,20 @@ void USART_PeriphCmd(USART_HandleTypedef_t *USART_Handle, FunctionalState_t stat
 	}
 
 }
-void USART_ReveiceData(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize)
+void USART_ReceiveData(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize)
 {
-	uint16_t *p16BitsBuffer;
-	uint8_t *p8BitsBuffer;
-
+	uint32_t *p16BitsBuffer;
+	uint32_t *p8BitsBuffer;
+	// her seferinde 2 byte atlanır.
 	if((USART_Handle->Init.WordLength == USART_WORDLENGTH_9BITS) && (USART_Handle->Init.Parity == USART_PARITY_NONE))
 		{
-			p16BitsBuffer == (uint16_t)pBuffer;
+			//typecast edilmiş buffer ile aynı adresi tutar
+			p16BitsBuffer == (uint16_t*)pBuffer;
 			p8BitsBuffer = NULL;
 		}
 		else
 		{
+			// 2 byte ilerlenmez. 1 byte'lık veri gelir.
 			p8BitsBuffer = (uint8_t*)pBuffer;
 			p16BitsBuffer = NULL;
 		}
@@ -168,31 +240,56 @@ void USART_ReveiceData(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, u
 		}
 	}
 }
+// değişkenleri glolabllere atarak. Globaller sayesinde data çekip/ okuyabiliriz
 void USART_TransmitData_IT(USART_HandleTypedef_t *USART_Handle, uint8_t *pData, uint16_t dataSize)
 {
+	// !!!!!! hat bizden önce meşgul değilse
+	// bus state değişkenine handle içerisinden değeri çektik.
 	USART_BusState_t usartBusState = USART_Handle->TxStatus;
 	if(usartBusState != USART_BUS_Tx)
 	{
-		USART_Handle->pTxBuffer = (uint8_t)pData;
+		// ilgili adres güncellemelerini yapabiliriz.
+		USART_Handle->pTxBuffer = (uint8_t)pData; //datanın adresini gönderdik
 		USART_Handle->TxBufferSize = (uint16_t)dataSize;
-		USART_Handle->TxStatus = USART_BUS_Tx;
+		USART_Handle->TxStatus = USART_BUS_Tx; // meşgul konuma getirdik
 		USART_Handle->TxISR_Function = USART_SendWith_IT;
-
+		// CR1 registerından 7 bit kaydırıp TxE 1 yapılıp interrupt üretilir.
 		USART_Handle->Instance->CR1 |= (0x1U << USART_CR1_TxEIE);
 
 	}
 
 }
-void USART_InterrutHandler(USART_HandleTypedef_t *USART_Handle)
+
+void USART_InterruptHandler(USART_HandleTypedef_t *USART_Handle)
 {
 	uint8_t flagValue = 0;
 	uint8_t interruptValue = 0;
+
 	flagValue = (uint8_t)(USART_Handle->Instance->SR >>7U & 0x1U);
 	interruptValue = (uint8_t)(USART_Handle->Instance->CR1 >> 7U & 0x1U);
-
+	// ikisi de aktifse interrupt gelmiştir ve   adresteki yapıyı handle içerisinden çağırabildik.
 	if(flagValue && interruptValue)
 	{
 		USART_Handle->TxISR_Function(USART_Handle);
+	}
+	flagValue = (uint8_t)((USART_Handle->Instance->SR >> 7U) & 0x1U);
+	InterruptValue = (uint8_t)((USART_Handle->Instance->CR1 >> 5U) & 0x1U);
+	if(flagValue && InterruptValue)
+	{
+		USART_Handle->RxISR_Function();
+	}
+}
+void USART_ReceiveData_IT(USART_HandleTypedef_t *USART_Handle, uint32_t *pBuffer, uint16_t dataSize)
+{
+	USART_BusState_t usartBusState = USART_Handle->RxStatus;
+	if(usartBusState != USART_BUS_Rx)
+	{
+		USART_Handle->pRxBuffer = (uint8_t*)pBuffer;
+		USART_Handle->pRxBufferSize = (uint16_t*)dataSize;
+		USART_Handle->RxStatus = USART_BUS_Rx;
+		USART_Handle->pRxISR_Function = USART_ReceiveWith_IT;
+
+		USART_Handle->Instance->CR1 |= (0x1U << USART_CR1_RxNEIE);
 	}
 }
 
